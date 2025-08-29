@@ -1,0 +1,15 @@
+{
+  "name": "whatsapp-personal-bot",
+  "version": "1.0.0",
+  "description": "A WhatsApp bot for personal notes and reminders.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "twilio": "^5.0.4",
+    "firebase-admin": "^12.1.0",
+    "express": "^4.19.2",
+    "chrono-node": "^2.7.6"
+  }
+}
