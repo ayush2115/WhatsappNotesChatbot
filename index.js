@@ -38,6 +38,25 @@ app.use(express.urlencoded({ extended: false }));
 // --- HELPER FUNCTIONS ---
 
 /**
+ * Express middleware: rejects requests that weren't signed by Twilio.
+ * Without this, anyone could POST a forged `From` number to read or write
+ * that person's notes. Twilio signs the exact public URL configured in its
+ * console; set TWILIO_WEBHOOK_URL if that ever differs from the request URL.
+ */
+function requireTwilioSignature(req, res, next) {
+    const signature = req.get('X-Twilio-Signature');
+    const proto = (req.get('x-forwarded-proto') || req.protocol).split(',')[0].trim();
+    const host = req.get('x-forwarded-host') || req.get('host');
+    const url = process.env.TWILIO_WEBHOOK_URL || `${proto}://${host}${req.originalUrl}`;
+
+    if (!authToken || !signature || !twilio.validateRequest(authToken, signature, url, req.body)) {
+        console.warn('Rejected webhook call with missing or invalid Twilio signature');
+        return res.status(403).send('Forbidden');
+    }
+    next();
+}
+
+/**
  * Sends a message via the Twilio API to a specified WhatsApp number.
  * @param {string} to - The recipient's WhatsApp number in the format 'whatsapp:+1...'
  * @param {string} body - The content of the message to send.
@@ -58,8 +77,8 @@ async function sendWhatsappMessage(to, body) {
 // --- API ROUTES ---
 
 // Main webhook for incoming WhatsApp messages from Twilio
-app.post('/api/whatsapp', async (req, res) => {
-    const incomingMsg = req.body.Body.trim();
+app.post('/api/whatsapp', requireTwilioSignature, async (req, res) => {
+    const incomingMsg = (req.body.Body || '').trim();
     const fromNumber = req.body.From; // User's WhatsApp number (e.g., 'whatsapp:+1... ')
     let replyMsg = '';
 
